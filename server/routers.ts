@@ -102,6 +102,73 @@ export const appRouter = router({
         return { question: questionData, gameCompleted: false };
       }),
 
+    // Get a hint for the current question
+    getHint: publicProcedure
+      .input(
+        z.object({
+          sessionId: z.number(),
+          questionId: z.number(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const session = await getGameSession(input.sessionId);
+        if (!session) {
+          throw new Error("Game session not found");
+        }
+
+        // Get the question
+        const db = await import("./db").then((m) => m.getDb());
+        if (!db) {
+          throw new Error("Database not available");
+        }
+
+        const { questions } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const questionResult = await db.select().from(questions).where(eq(questions.id, input.questionId)).limit(1);
+        
+        if (questionResult.length === 0) {
+          throw new Error("Question not found");
+        }
+
+        const question = questionResult[0];
+        const correctAnswer = question.correctAnswer;
+        const hintPenalty = 1; // Deduct 1 point for using a hint
+        const newScore = Math.max(0, session.score - hintPenalty);
+
+        // Generate hint: eliminate 2 incorrect options, keep correct + 1 other
+        const allOptions = [
+          { letter: "A", text: question.optionA },
+          { letter: "B", text: question.optionB },
+          { letter: "C", text: question.optionC },
+          { letter: "D", text: question.optionD },
+        ];
+
+        // Find the correct option
+        const correctOption = allOptions.find((opt) => opt.letter === correctAnswer);
+        const incorrectOptions = allOptions.filter((opt) => opt.letter !== correctAnswer);
+
+        // Randomly select 1 incorrect option to keep
+        const randomIncorrectIndex = Math.floor(Math.random() * incorrectOptions.length);
+        const keptIncorrectOption = incorrectOptions[randomIncorrectIndex];
+
+        // Eliminated options are the other incorrect ones
+        const eliminatedOptions = incorrectOptions
+          .filter((_, index) => index !== randomIncorrectIndex)
+          .map((opt) => opt.letter);
+
+        // Update session score
+        await updateGameSession(input.sessionId, {
+          score: newScore,
+        });
+
+        return {
+          eliminatedOptions,
+          remainingOptions: [correctOption?.letter, keptIncorrectOption.letter],
+          hintPenalty,
+          newScore,
+        };
+      }),
+
     // Submit an answer
     submitAnswer: publicProcedure
       .input(

@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { GeometricBackground } from "@/components/GeometricBackground";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lightbulb } from "lucide-react";
 import { playCorrectSound, playIncorrectSound, playCelebrationSound } from "@/lib/audio";
 
 export default function QuizScreen() {
@@ -14,6 +14,9 @@ export default function QuizScreen() {
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [correctAnswer, setCorrectAnswer] = useState<"A" | "B" | "C" | "D" | null>(null);
+  const [hintUsed, setHintUsed] = useState(false);
+  const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
+  const [hintMessage, setHintMessage] = useState("");
 
   // Start game mutation
   const startGameMutation = trpc.game.startGame.useMutation();
@@ -32,6 +35,9 @@ export default function QuizScreen() {
 
   // Submit answer mutation
   const submitAnswerMutation = trpc.game.submitAnswer.useMutation();
+
+  // Get hint mutation
+  const getHintMutation = trpc.game.getHint.useMutation();
 
   // Initialize game on mount
   useEffect(() => {
@@ -53,9 +59,37 @@ export default function QuizScreen() {
     }
   }, [questionData, setLocation]);
 
+  // Reset hint state when question changes
+  useEffect(() => {
+    setHintUsed(false);
+    setEliminatedOptions([]);
+    setHintMessage("");
+    setSelectedAnswer(null);
+  }, [questionData?.question?.id]);
+
   const handleAnswerSelect = (answer: "A" | "B" | "C" | "D") => {
     if (!showResult) {
       setSelectedAnswer(answer);
+    }
+  };
+
+  const handleGetHint = async () => {
+    if (!questionData?.question || !sessionId || hintUsed) return;
+
+    try {
+      const result = await getHintMutation.mutateAsync({
+        sessionId,
+        questionId: questionData.question.id,
+      });
+
+      setHintUsed(true);
+      setEliminatedOptions(result.eliminatedOptions);
+      setHintMessage(`Hint: ${result.hintPenalty} point deducted. Score now: ${result.newScore}`);
+      
+      // Refetch game state to update score display
+      await refetchGameState();
+    } catch (error) {
+      console.error("Failed to get hint:", error);
     }
   };
 
@@ -156,11 +190,14 @@ export default function QuizScreen() {
               const isSelected = selectedAnswer === option.letter;
               const isThisCorrect = showResult && correctAnswer === option.letter;
               const isThisWrong = showResult && isSelected && !isCorrect;
+              const isEliminated = eliminatedOptions.includes(option.letter);
 
               let buttonClass = "bg-card hover:bg-muted";
               let animationClass = "";
 
-              if (isThisCorrect) {
+              if (isEliminated) {
+                buttonClass = "bg-muted opacity-50 cursor-not-allowed hover:bg-muted";
+              } else if (isThisCorrect) {
                 buttonClass = "bg-secondary border-secondary";
                 if (showResult) {
                   animationClass = "animate-pulse-correct";
@@ -180,8 +217,8 @@ export default function QuizScreen() {
               return (
                 <Button
                   key={option.letter}
-                  onClick={() => handleAnswerSelect(option.letter)}
-                  disabled={showResult}
+                  onClick={() => !isEliminated && handleAnswerSelect(option.letter)}
+                  disabled={showResult || isEliminated}
                   className={`text-left p-6 h-auto text-lg font-bold uppercase border-4 border-foreground/20 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] transition-all ${buttonClass} ${animationClass}`}
                 >
                   <span className="text-2xl font-black mr-4">{option.letter}.</span>
@@ -192,9 +229,28 @@ export default function QuizScreen() {
           </div>
         </Card>
 
-        {/* Submit Button */}
-        {!showResult && (
-          <div className="flex justify-center">
+        {/* Hint Message */}
+        {hintMessage && (
+          <Card className="p-4 mb-4 bg-accent/20 border-4 border-accent shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)]">
+            <p className="text-center font-bold text-accent-foreground">{hintMessage}</p>
+          </Card>
+        )}
+
+        {/* Hint and Submit Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          {!showResult && (
+            <Button
+              size="lg"
+              onClick={handleGetHint}
+              disabled={hintUsed || showResult || getHintMutation.isPending}
+              className="text-xl font-black uppercase px-8 py-6 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 border-4 border-foreground/20 flex items-center gap-2"
+            >
+              <Lightbulb className="w-6 h-6" />
+              {hintUsed ? "Hint Used" : "Get Hint"}
+            </Button>
+          )}
+
+          {!showResult && (
             <Button
               size="lg"
               onClick={handleSubmitAnswer}
@@ -203,8 +259,8 @@ export default function QuizScreen() {
             >
               {submitAnswerMutation.isPending ? "Submitting..." : "Submit Answer"}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Result Message */}
         {showResult && (

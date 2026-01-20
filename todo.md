@@ -57,3 +57,12 @@
 - [x] Integrate sounds into QuizScreen
 - [x] Integrate animations into QuizScreen
 - [x] Test sound and animation playback
+
+
+## Hint System
+- [x] Add hint logic to eliminate incorrect options
+- [x] Create hint UI button on quiz screen
+- [x] Implement hint usage tracking per question
+- [x] Apply score penalty for using hints
+- [x] Display hint feedback to player
+- [x] Test hint system functionality
