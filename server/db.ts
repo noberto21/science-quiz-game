@@ -1,6 +1,6 @@
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, categories, questions, gameSessions, InsertGameSession } from "../drizzle/schema";
+import { InsertUser, users, categories, questions, gameSessions, InsertGameSession, gameStatistics } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -138,6 +138,7 @@ export async function updateGameSession(
     isCompleted?: number;
     completedCategories?: string;
     completedAt?: Date;
+    durationSeconds?: number;
   }
 ) {
   const db = await getDb();
@@ -150,4 +151,66 @@ export async function updateGameSession(
     console.error("[Database] Failed to update game session:", error);
     return false;
   }
+}
+
+
+// Statistics database helpers
+
+export async function getOverallStatistics(userId: number | undefined) {
+  const db = await getDb();
+  if (!db || !userId) return null;
+
+  const stats = await db
+    .select({
+      totalGames: sql`COUNT(DISTINCT id)`,
+      totalCorrect: sql`SUM(score)`,
+      totalQuestions: sql`SUM(questionsAnswered)`,
+      fastestTime: sql`MIN(durationSeconds)`,
+      averageTime: sql`AVG(durationSeconds)`,
+    })
+    .from(gameSessions)
+    .where(and(eq(gameSessions.userId, userId), eq(gameSessions.isCompleted, 1)));
+
+  return stats[0] || null;
+}
+
+export async function getCategoryStatistics(userId: number | undefined) {
+  const db = await getDb();
+  if (!db || !userId) return [];
+
+  return await db
+    .select({
+      categoryId: gameSessions.currentCategoryId,
+      categoryName: categories.name,
+      totalGames: sql`COUNT(DISTINCT ${gameSessions.id})`,
+      totalCorrect: sql`SUM(${gameSessions.score})`,
+      totalQuestions: sql`SUM(${gameSessions.questionsAnswered})`,
+      fastestTime: sql`MIN(${gameSessions.durationSeconds})`,
+      averageTime: sql`AVG(${gameSessions.durationSeconds})`,
+      lastPlayed: sql`MAX(${gameSessions.completedAt})`,
+    })
+    .from(gameSessions)
+    .innerJoin(categories, eq(gameSessions.currentCategoryId, categories.id))
+    .where(and(eq(gameSessions.userId, userId), eq(gameSessions.isCompleted, 1)))
+    .groupBy(gameSessions.currentCategoryId);
+}
+
+export async function getRecentGames(userId: number | undefined, limit: number = 10) {
+  const db = await getDb();
+  if (!db || !userId) return [];
+
+  return await db
+    .select({
+      id: gameSessions.id,
+      score: gameSessions.score,
+      questionsAnswered: gameSessions.questionsAnswered,
+      categoryName: categories.name,
+      durationSeconds: gameSessions.durationSeconds,
+      completedAt: gameSessions.completedAt,
+    })
+    .from(gameSessions)
+    .innerJoin(categories, eq(gameSessions.currentCategoryId, categories.id))
+    .where(and(eq(gameSessions.userId, userId), eq(gameSessions.isCompleted, 1)))
+    .orderBy(desc(gameSessions.completedAt))
+    .limit(limit);
 }

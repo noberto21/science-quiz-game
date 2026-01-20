@@ -66,3 +66,14 @@
 - [x] Apply score penalty for using hints
 - [x] Display hint feedback to player
 - [x] Test hint system functionality
+
+
+## Statistics Dashboard
+- [x] Update game_sessions table to track game duration
+- [x] Create statistics aggregation queries
+- [x] Create backend procedures for accuracy rates
+- [x] Create backend procedures for fastest times
+- [x] Create backend procedures for category performance
+- [x] Build statistics dashboard UI
+- [x] Add statistics link to navigation
+- [x] Test statistics calculations

@@ -71,7 +71,28 @@ export const gameSessions = mysqlTable("gameSessions", {
   completedCategories: text("completedCategories"), // JSON array of completed category IDs
   startedAt: timestamp("startedAt").defaultNow().notNull(),
   completedAt: timestamp("completedAt"),
+  durationSeconds: int("durationSeconds"),
 });
 
 export type GameSession = typeof gameSessions.$inferSelect;
 export type InsertGameSession = typeof gameSessions.$inferInsert;
+
+/**
+ * Game statistics to track performance metrics
+ */
+export const gameStatistics = mysqlTable("gameStatistics", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId"),
+  categoryId: int("categoryId").notNull(),
+  totalGames: int("totalGames").default(0).notNull(),
+  totalCorrect: int("totalCorrect").default(0).notNull(),
+  totalQuestions: int("totalQuestions").default(0).notNull(),
+  fastestTimeSeconds: int("fastestTimeSeconds"),
+  averageTimeSeconds: int("averageTimeSeconds"),
+  lastPlayedAt: timestamp("lastPlayedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type GameStatistic = typeof gameStatistics.$inferSelect;
+export type InsertGameStatistic = typeof gameStatistics.$inferInsert;

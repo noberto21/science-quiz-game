@@ -9,6 +9,9 @@ import {
   createGameSession,
   getGameSession,
   updateGameSession,
+  getOverallStatistics,
+  getCategoryStatistics,
+  getRecentGames,
 } from "./db";
 
 export const appRouter = router({
@@ -169,6 +172,29 @@ export const appRouter = router({
         };
       }),
 
+    // Get statistics
+    getStatistics: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user?.id) {
+        return {
+          overall: null,
+          byCategory: [],
+          recentGames: [],
+        };
+      }
+
+      const [overall, byCategory, recentGames] = await Promise.all([
+        getOverallStatistics(ctx.user.id),
+        getCategoryStatistics(ctx.user.id),
+        getRecentGames(ctx.user.id, 10),
+      ]);
+
+      return {
+        overall,
+        byCategory,
+        recentGames,
+      };
+    }),
+
     // Submit an answer
     submitAnswer: publicProcedure
       .input(
@@ -234,6 +260,13 @@ export const appRouter = router({
           }
         }
 
+        // Calculate duration if game is completed
+        let durationSeconds: number | undefined;
+        if (isGameCompleted) {
+          const now = new Date();
+          durationSeconds = Math.round((now.getTime() - session.startedAt.getTime()) / 1000);
+        }
+
         // Update session
         await updateGameSession(input.sessionId, {
           score: newScore,
@@ -243,6 +276,7 @@ export const appRouter = router({
           isCompleted: isGameCompleted ? 1 : 0,
           completedCategories: JSON.stringify(completedCategoriesArray),
           completedAt: isGameCompleted ? new Date() : undefined,
+          durationSeconds,
         });
 
         return {

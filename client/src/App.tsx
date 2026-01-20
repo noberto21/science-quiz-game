@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import StartScreen from "./pages/StartScreen";
 import QuizScreen from "./pages/QuizScreen";
 import EndScreen from "./pages/EndScreen";
+import Statistics from "./pages/Statistics";
 
 function Router() {
   return (
@@ -14,6 +15,7 @@ function Router() {
       <Route path={"/"} component={StartScreen} />
       <Route path={"/game"} component={QuizScreen} />
       <Route path={"/end"} component={EndScreen} />
+      <Route path={"/statistics"} component={Statistics} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

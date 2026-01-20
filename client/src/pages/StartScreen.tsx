@@ -37,13 +37,22 @@ export default function StartScreen() {
         </p>
 
         {/* Buttons */}
-        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center flex-wrap">
           <Button
             size="lg"
             onClick={handleStartGame}
             className="text-2xl font-black uppercase px-12 py-8 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 border-4 border-foreground/20"
           >
             Start Game
+          </Button>
+          
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => setLocation("/statistics")}
+            className="text-2xl font-black uppercase px-12 py-8 rounded-2xl bg-secondary text-secondary-foreground hover:bg-secondary/90 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 border-4 border-foreground/20"
+          >
+            Statistics
           </Button>
           
           <Button
