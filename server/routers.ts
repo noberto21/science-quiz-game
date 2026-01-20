@@ -2,9 +2,16 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
+import { z } from "zod";
+import {
+  getAllCategories,
+  getRandomQuestion,
+  createGameSession,
+  getGameSession,
+  updateGameSession,
+} from "./db";
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -17,12 +24,168 @@ export const appRouter = router({
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  game: router({
+    // Get all categories
+    getCategories: publicProcedure.query(async () => {
+      return await getAllCategories();
+    }),
+
+    // Start a new game session
+    startGame: publicProcedure.mutation(async ({ ctx }) => {
+      const allCategories = await getAllCategories();
+      if (allCategories.length === 0) {
+        throw new Error("No categories available");
+      }
+
+      const firstCategory = allCategories[0];
+      const sessionId = await createGameSession({
+        userId: ctx.user?.id,
+        currentCategoryId: firstCategory.id,
+        currentDifficulty: "Easy",
+        score: 0,
+        questionsAnswered: 0,
+        isCompleted: 0,
+        completedCategories: JSON.stringify([]),
+      });
+
+      if (!sessionId) {
+        throw new Error("Failed to create game session");
+      }
+
+      return { sessionId };
+    }),
+
+    // Get current game state
+    getGameState: publicProcedure
+      .input(z.object({ sessionId: z.number() }))
+      .query(async ({ input }) => {
+        const session = await getGameSession(input.sessionId);
+        if (!session) {
+          throw new Error("Game session not found");
+        }
+
+        const allCategories = await getAllCategories();
+        const currentCategory = allCategories.find((c) => c.id === session.currentCategoryId);
+
+        return {
+          session,
+          currentCategory,
+          allCategories,
+        };
+      }),
+
+    // Get a random question
+    getQuestion: publicProcedure
+      .input(
+        z.object({
+          sessionId: z.number(),
+        })
+      )
+      .query(async ({ input }) => {
+        const session = await getGameSession(input.sessionId);
+        if (!session) {
+          throw new Error("Game session not found");
+        }
+
+        if (session.isCompleted === 1) {
+          return { question: null, gameCompleted: true };
+        }
+
+        const question = await getRandomQuestion(session.currentCategoryId, session.currentDifficulty);
+        
+        if (!question) {
+          return { question: null, gameCompleted: false, error: "No questions available" };
+        }
+
+        // Return question without the correct answer
+        const { correctAnswer, ...questionData } = question;
+        return { question: questionData, gameCompleted: false };
+      }),
+
+    // Submit an answer
+    submitAnswer: publicProcedure
+      .input(
+        z.object({
+          sessionId: z.number(),
+          questionId: z.number(),
+          answer: z.enum(["A", "B", "C", "D"]),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const session = await getGameSession(input.sessionId);
+        if (!session) {
+          throw new Error("Game session not found");
+        }
+
+        // Get the question to check the answer
+        const db = await import("./db").then((m) => m.getDb());
+        if (!db) {
+          throw new Error("Database not available");
+        }
+
+        const { questions } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const questionResult = await db.select().from(questions).where(eq(questions.id, input.questionId)).limit(1);
+        
+        if (questionResult.length === 0) {
+          throw new Error("Question not found");
+        }
+
+        const question = questionResult[0];
+        const isCorrect = question.correctAnswer === input.answer;
+        const newScore = isCorrect ? session.score + 1 : session.score;
+        const newQuestionsAnswered = session.questionsAnswered + 1;
+
+        // Determine next difficulty/category
+        const allCategories = await getAllCategories();
+        const completedCategoriesArray = JSON.parse(session.completedCategories || "[]");
+        
+        let nextDifficulty = session.currentDifficulty;
+        let nextCategoryId = session.currentCategoryId;
+        let isGameCompleted = false;
+
+        // Progress through difficulties: Easy -> Medium -> Hard
+        if (session.currentDifficulty === "Easy") {
+          nextDifficulty = "Medium";
+        } else if (session.currentDifficulty === "Medium") {
+          nextDifficulty = "Hard";
+        } else if (session.currentDifficulty === "Hard") {
+          // Completed all difficulties for this category
+          completedCategoriesArray.push(session.currentCategoryId);
+          
+          // Find next category
+          const nextCategory = allCategories.find(
+            (c) => !completedCategoriesArray.includes(c.id)
+          );
+
+          if (nextCategory) {
+            nextCategoryId = nextCategory.id;
+            nextDifficulty = "Easy";
+          } else {
+            // All categories completed
+            isGameCompleted = true;
+          }
+        }
+
+        // Update session
+        await updateGameSession(input.sessionId, {
+          score: newScore,
+          questionsAnswered: newQuestionsAnswered,
+          currentCategoryId: nextCategoryId,
+          currentDifficulty: nextDifficulty,
+          isCompleted: isGameCompleted ? 1 : 0,
+          completedCategories: JSON.stringify(completedCategoriesArray),
+          completedAt: isGameCompleted ? new Date() : undefined,
+        });
+
+        return {
+          isCorrect,
+          correctAnswer: question.correctAnswer,
+          newScore,
+          gameCompleted: isGameCompleted,
+        };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

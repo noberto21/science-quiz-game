@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, categories, questions, gameSessions, InsertGameSession } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,65 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Quiz game database helpers
+
+export async function getAllCategories() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(categories).orderBy(categories.displayOrder);
+}
+
+export async function getRandomQuestion(categoryId: number, difficulty: "Easy" | "Medium" | "Hard") {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select()
+    .from(questions)
+    .where(and(eq(questions.categoryId, categoryId), eq(questions.difficulty, difficulty)))
+    .orderBy(sql`RAND()`)
+    .limit(1);
+
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function createGameSession(sessionData: InsertGameSession) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(gameSessions).values(sessionData).$returningId();
+  return result[0]?.id ?? null;
+}
+
+export async function getGameSession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(gameSessions).where(eq(gameSessions.id, sessionId)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function updateGameSession(
+  sessionId: number,
+  updates: {
+    currentCategoryId?: number;
+    currentDifficulty?: "Easy" | "Medium" | "Hard";
+    score?: number;
+    questionsAnswered?: number;
+    isCompleted?: number;
+    completedCategories?: string;
+    completedAt?: Date;
+  }
+) {
+  const db = await getDb();
+  if (!db) return false;
+
+  try {
+    await db.update(gameSessions).set(updates).where(eq(gameSessions.id, sessionId));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to update game session:", error);
+    return false;
+  }
+}
