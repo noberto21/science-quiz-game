@@ -59,11 +59,11 @@ describe("Hint System", () => {
     expect(result.eliminatedOptions.length).toBe(2);
     expect(result.remainingOptions).toBeDefined();
     expect(result.remainingOptions.length).toBe(2);
-    expect(result.hintPenalty).toBe(1);
+    expect(result.hintPenalty).toBe(2);
     expect(result.newScore).toBeGreaterThanOrEqual(0);
   });
 
-  it("should deduct 1 point for using a hint", async () => {
+  it("should deduct 2 points for using a hint", async () => {
     // Get initial game state
     const initialState = await caller.game.getGameState({ sessionId });
     const initialScore = initialState.session.score;
@@ -72,7 +72,7 @@ describe("Hint System", () => {
     const hintResult = await caller.game.getHint({ sessionId, questionId });
 
     // Verify score was deducted
-    expect(hintResult.newScore).toBe(Math.max(0, initialScore - 1));
+    expect(hintResult.newScore).toBe(Math.max(0, initialScore - 2));
   });
 
   it("should eliminate 2 incorrect options", async () => {

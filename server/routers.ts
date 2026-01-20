@@ -135,7 +135,7 @@ export const appRouter = router({
 
         const question = questionResult[0];
         const correctAnswer = question.correctAnswer;
-        const hintPenalty = 1; // Deduct 1 point for using a hint
+        const hintPenalty = 2; // Deduct 2 points for using a hint
         const newScore = Math.max(0, session.score - hintPenalty);
 
         // Generate hint: eliminate 2 incorrect options, keep correct + 1 other
@@ -226,7 +226,7 @@ export const appRouter = router({
 
         const question = questionResult[0];
         const isCorrect = question.correctAnswer === input.answer;
-        const newScore = isCorrect ? session.score + 1 : session.score;
+        const newScore = isCorrect ? session.score + 5 : session.score;
         const newQuestionsAnswered = session.questionsAnswered + 1;
 
         // Determine next difficulty/category

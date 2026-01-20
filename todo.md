@@ -77,3 +77,10 @@
 - [x] Build statistics dashboard UI
 - [x] Add statistics link to navigation
 - [x] Test statistics calculations
+
+
+## Scoring System Update
+- [x] Update score to award 5 points per correct answer
+- [x] Update hint penalty to 2 points
+- [x] Test scoring calculations
+- [x] Update statistics calculations
