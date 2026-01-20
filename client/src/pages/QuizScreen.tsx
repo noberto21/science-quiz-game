@@ -5,6 +5,7 @@ import { GeometricBackground } from "@/components/GeometricBackground";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Loader2 } from "lucide-react";
+import { playCorrectSound, playIncorrectSound, playCelebrationSound } from "@/lib/audio";
 
 export default function QuizScreen() {
   const [, setLocation] = useLocation();
@@ -72,9 +73,17 @@ export default function QuizScreen() {
       setCorrectAnswer(result.correctAnswer);
       setShowResult(true);
 
+      // Play sound and trigger animation
+      if (result.isCorrect) {
+        playCorrectSound();
+      } else {
+        playIncorrectSound();
+      }
+
       // Wait 2 seconds then move to next question
       setTimeout(() => {
         if (result.gameCompleted) {
+          playCelebrationSound();
           sessionStorage.setItem("finalScore", result.newScore.toString());
           setLocation("/end");
         } else {
@@ -149,12 +158,23 @@ export default function QuizScreen() {
               const isThisWrong = showResult && isSelected && !isCorrect;
 
               let buttonClass = "bg-card hover:bg-muted";
+              let animationClass = "";
+
               if (isThisCorrect) {
                 buttonClass = "bg-secondary border-secondary";
+                if (showResult) {
+                  animationClass = "animate-pulse-correct";
+                }
               } else if (isThisWrong) {
                 buttonClass = "bg-destructive border-destructive text-destructive-foreground";
+                if (showResult) {
+                  animationClass = "animate-shake-wrong";
+                }
               } else if (isSelected) {
                 buttonClass = "bg-primary border-primary";
+                if (showResult && !isCorrect) {
+                  animationClass = "animate-shake-wrong";
+                }
               }
 
               return (
@@ -162,7 +182,7 @@ export default function QuizScreen() {
                   key={option.letter}
                   onClick={() => handleAnswerSelect(option.letter)}
                   disabled={showResult}
-                  className={`text-left p-6 h-auto text-lg font-bold uppercase border-4 border-foreground/20 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] transition-all ${buttonClass}`}
+                  className={`text-left p-6 h-auto text-lg font-bold uppercase border-4 border-foreground/20 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] transition-all ${buttonClass} ${animationClass}`}
                 >
                   <span className="text-2xl font-black mr-4">{option.letter}.</span>
                   {option.text}

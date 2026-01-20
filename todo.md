@@ -46,3 +46,14 @@
 - [x] Verify score tracking accuracy
 - [x] Add loading states
 - [x] Add error handling
+
+
+## Sound Effects & Animations
+- [x] Create audio utility for playing sounds
+- [x] Add correct answer sound effect
+- [x] Add incorrect answer sound effect
+- [x] Create celebration animation for correct answers
+- [x] Create shake animation for incorrect answers
+- [x] Integrate sounds into QuizScreen
+- [x] Integrate animations into QuizScreen
+- [x] Test sound and animation playback
