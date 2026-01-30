@@ -84,3 +84,11 @@
 - [x] Update hint penalty to 2 points
 - [x] Test scoring calculations
 - [x] Update statistics calculations
+
+
+## Subject Selection & Game Rename
+- [x] Create subject selection screen component
+- [x] Update game flow to include subject selection before quiz
+- [x] Rename game title to "Lacon Quiz Game"
+- [x] Update all UI text references to new game name
+- [x] Test subject selection flow

@@ -6,7 +6,7 @@ export default function StartScreen() {
   const [, setLocation] = useLocation();
 
   const handleStartGame = () => {
-    setLocation("/game");
+    setLocation("/subjects");
   };
 
   const handleExit = () => {
@@ -21,7 +21,7 @@ export default function StartScreen() {
         {/* Game Title */}
         <div className="space-y-4">
           <h1 className="text-6xl md:text-8xl font-black uppercase tracking-wider text-shadow-lg text-foreground">
-            Science
+            Lacon
           </h1>
           <h1 className="text-6xl md:text-8xl font-black uppercase tracking-wider text-shadow-lg text-foreground">
             Quiz
@@ -33,7 +33,7 @@ export default function StartScreen() {
 
         {/* Subtitle */}
         <p className="text-xl md:text-2xl font-bold uppercase tracking-wide text-foreground/80">
-          Test Your Knowledge Across Math, Chemistry & Biology
+          Test Your Knowledge Across Multiple Subjects
         </p>
 
         {/* Buttons */}

@@ -34,13 +34,19 @@ export const appRouter = router({
     }),
 
     // Start a new game session
-    startGame: publicProcedure.mutation(async ({ ctx }) => {
+    startGame: publicProcedure
+      .input(z.object({ categoryId: z.number() }).optional())
+      .mutation(async ({ ctx, input }) => {
       const allCategories = await getAllCategories();
       if (allCategories.length === 0) {
         throw new Error("No categories available");
       }
 
-      const firstCategory = allCategories[0];
+      // Use selected category or default to first
+      const selectedCategoryId = input?.categoryId;
+      const firstCategory = selectedCategoryId 
+        ? allCategories.find(c => c.id === selectedCategoryId) || allCategories[0]
+        : allCategories[0];
       const sessionId = await createGameSession({
         userId: ctx.user?.id,
         currentCategoryId: firstCategory.id,

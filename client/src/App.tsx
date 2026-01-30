@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import StartScreen from "./pages/StartScreen";
+import SubjectSelection from "./pages/SubjectSelection";
 import QuizScreen from "./pages/QuizScreen";
 import EndScreen from "./pages/EndScreen";
 import Statistics from "./pages/Statistics";
@@ -13,7 +14,8 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={StartScreen} />
-      <Route path={"/game"} component={QuizScreen} />
+      <Route path={"/subjects"} component={SubjectSelection} />
+      <Route path={"/quiz"} component={QuizScreen} />
       <Route path={"/end"} component={EndScreen} />
       <Route path={"/statistics"} component={Statistics} />
       <Route path={"/404"} component={NotFound} />

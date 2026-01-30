@@ -26,7 +26,7 @@ export default function EndScreen() {
   let performanceColor = "";
 
   if (percentage >= 80) {
-    performanceMessage = "Outstanding! You're a Science Master!";
+    performanceMessage = "Outstanding! You're a Lacon Master!";
     performanceColor = "text-secondary";
   } else if (percentage >= 60) {
     performanceMessage = "Great Job! Keep Learning!";
