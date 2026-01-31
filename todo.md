@@ -96,3 +96,7 @@
 
 ## Bug Fixes
 - [x] Fix Chemistry and Biology selections routing to Math
+
+
+## Score Update Bug
+- [x] Fix score not updating after correct answers

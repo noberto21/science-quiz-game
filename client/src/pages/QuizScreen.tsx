@@ -102,6 +102,7 @@ export default function QuizScreen() {
           setHintUsed(false);
           setEliminatedOptions([]);
           setHintMessage("");
+          refetchGameState();
           refetchQuestion();
         }
       }, 2000);
