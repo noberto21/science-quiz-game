@@ -17,6 +17,8 @@ export default function QuizScreen() {
   const [hintUsed, setHintUsed] = useState(false);
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
   const [hintMessage, setHintMessage] = useState("");
+  const [currentCombo, setCurrentCombo] = useState(0);
+  const [comboBonus, setComboBonus] = useState(0);
 
   // Start game mutation
   const startGameMutation = trpc.game.startGame.useMutation();
@@ -41,15 +43,22 @@ export default function QuizScreen() {
 
   // Initialize game on mount
   useEffect(() => {
-    const initGame = async () => {
-      try {
-        const result = await startGameMutation.mutateAsync();
-        setSessionId(result.sessionId);
-      } catch (error) {
-        console.error("Failed to start game:", error);
-      }
-    };
-    initGame();
+    const storedSessionId = sessionStorage.getItem("sessionId");
+    if (storedSessionId) {
+      // Use existing session from subject selection
+      setSessionId(parseInt(storedSessionId));
+    } else {
+      // Fallback: start a new game without category selection
+      const initGame = async () => {
+        try {
+          const result = await startGameMutation.mutateAsync();
+          setSessionId(result.sessionId);
+        } catch (error) {
+          console.error("Failed to start game:", error);
+        }
+      };
+      initGame();
+    }
   }, []);
 
   // Check if game is completed
@@ -59,73 +68,41 @@ export default function QuizScreen() {
     }
   }, [questionData, setLocation]);
 
-  // Reset hint state when question changes
-  useEffect(() => {
-    setHintUsed(false);
-    setEliminatedOptions([]);
-    setHintMessage("");
-    setSelectedAnswer(null);
-  }, [questionData?.question?.id]);
+  const handleSubmitAnswer = async (answer: "A" | "B" | "C" | "D") => {
+    if (showResult || !questionData?.question?.id) return;
 
-  const handleAnswerSelect = (answer: "A" | "B" | "C" | "D") => {
-    if (!showResult) {
-      setSelectedAnswer(answer);
-    }
-  };
-
-  const handleGetHint = async () => {
-    if (!questionData?.question || !sessionId || hintUsed) return;
-
-    try {
-      const result = await getHintMutation.mutateAsync({
-        sessionId,
-        questionId: questionData.question.id,
-      });
-
-      setHintUsed(true);
-      setEliminatedOptions(result.eliminatedOptions);
-      setHintMessage(`Hint: ${result.hintPenalty} point deducted. Score now: ${result.newScore}`);
-      
-      // Refetch game state to update score display
-      await refetchGameState();
-    } catch (error) {
-      console.error("Failed to get hint:", error);
-    }
-  };
-
-  const handleSubmitAnswer = async () => {
-    if (!selectedAnswer || !questionData?.question || !sessionId) return;
+    setSelectedAnswer(answer);
 
     try {
       const result = await submitAnswerMutation.mutateAsync({
-        sessionId,
+        sessionId: sessionId!,
         questionId: questionData.question.id,
-        answer: selectedAnswer,
+        answer: answer,
       });
 
       setIsCorrect(result.isCorrect);
       setCorrectAnswer(result.correctAnswer);
       setShowResult(true);
 
-      // Play sound and trigger animation
+      // Play sound
       if (result.isCorrect) {
         playCorrectSound();
       } else {
         playIncorrectSound();
       }
 
-      // Wait 2 seconds then move to next question
+      // Auto-advance after 2 seconds
       setTimeout(() => {
         if (result.gameCompleted) {
-          playCelebrationSound();
           sessionStorage.setItem("finalScore", result.newScore.toString());
           setLocation("/end");
         } else {
           setShowResult(false);
           setSelectedAnswer(null);
-          setCorrectAnswer(null);
+          setHintUsed(false);
+          setEliminatedOptions([]);
+          setHintMessage("");
           refetchQuestion();
-          refetchGameState();
         }
       }, 2000);
     } catch (error) {
@@ -133,148 +110,156 @@ export default function QuizScreen() {
     }
   };
 
-  if (!sessionId || !gameState || !questionData) {
+  const handleUseHint = async () => {
+    if (hintUsed || !questionData?.question?.id) return;
+
+    try {
+      const result = await getHintMutation.mutateAsync({
+        sessionId: sessionId!,
+        questionId: questionData.question.id,
+      });
+
+      setEliminatedOptions(result.eliminatedOptions);
+      setHintUsed(true);
+      setHintMessage(`Hint: ${result.eliminatedOptions.length} incorrect options eliminated!`);
+    } catch (error) {
+      console.error("Failed to get hint:", error);
+    }
+  };
+
+  if (!sessionId || isLoadingQuestion) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <GeometricBackground />
+        <div className="relative z-10 text-center">
+          <Loader2 className="animate-spin w-12 h-12 mx-auto mb-4" />
+          <p className="text-xl font-black uppercase">Loading Question...</p>
+        </div>
       </div>
     );
   }
 
-  const question = questionData.question;
-
-  if (!question) {
+  if (!questionData) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-2xl font-bold">Loading question...</p>
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <GeometricBackground />
+        <div className="relative z-10 text-center">
+          <p className="text-xl font-black uppercase">Error loading question</p>
+        </div>
       </div>
     );
   }
 
-  const options = [
-    { letter: "A" as const, text: question.optionA },
-    { letter: "B" as const, text: question.optionB },
-    { letter: "C" as const, text: question.optionC },
-    { letter: "D" as const, text: question.optionD },
-  ];
+  const maxScore = 9 * 5; // 9 questions × 5 points
+  const scorePercentage = (gameState?.session?.score || 0) / maxScore;
 
   return (
     <div className="min-h-screen relative overflow-hidden py-8">
       <GeometricBackground />
 
       <div className="container relative z-10 max-w-4xl">
-        {/* Header with score and difficulty */}
-        <div className="flex justify-between items-center mb-8">
-          <Card className="px-6 py-3 bg-card border-4 border-foreground/20 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)]">
-            <p className="text-xl font-black uppercase tracking-wide">
-              Score: <span className="text-primary">{gameState.session.score}</span>
-            </p>
-          </Card>
+        {/* Header with Score and Difficulty */}
+        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
+          <div className="text-center">
+            <p className="text-sm font-bold uppercase text-foreground/70 mb-1">Category</p>
+            <p className="text-2xl font-black uppercase text-foreground">{gameState?.currentCategory?.name}</p>
+          </div>
 
-          <Card className="px-6 py-3 bg-card border-4 border-foreground/20 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)]">
-            <p className="text-xl font-black uppercase tracking-wide">
-              {gameState.currentCategory?.name} - {gameState.session.currentDifficulty}
-            </p>
-          </Card>
+          <div className="text-center">
+            <p className="text-sm font-bold uppercase text-foreground/70 mb-1">Difficulty</p>
+            <p className="text-2xl font-black uppercase text-foreground">{gameState?.session?.currentDifficulty}</p>
+          </div>
+
+          <div className="text-center">
+            <p className="text-sm font-bold uppercase text-foreground/70 mb-1">Score</p>
+            <p className="text-2xl font-black uppercase text-foreground">{gameState?.session?.score || 0}</p>
+          </div>
+
+          {currentCombo > 1 && (
+            <div className="text-center bg-accent/20 px-4 py-2 rounded-lg border-2 border-accent">
+              <p className="text-sm font-bold uppercase text-accent mb-1">Combo</p>
+              <p className="text-2xl font-black uppercase text-accent">{currentCombo}x</p>
+            </div>
+          )}
         </div>
 
         {/* Question Card */}
-        <Card className="p-8 mb-8 bg-card border-4 border-foreground/20 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)]">
-          <h2 className="text-3xl font-bold text-center mb-8 text-foreground">
-            {question.questionText}
+        <Card className="p-8 mb-8 border-4 border-foreground/20 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] bg-card">
+          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-wide mb-8 text-foreground">
+            {questionData.question?.questionText || "Loading..."}
           </h2>
 
           {/* Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {options.map((option) => {
-              const isSelected = selectedAnswer === option.letter;
-              const isThisCorrect = showResult && correctAnswer === option.letter;
-              const isThisWrong = showResult && isSelected && !isCorrect;
-              const isEliminated = eliminatedOptions.includes(option.letter);
-
-              let buttonClass = "bg-card hover:bg-muted";
-              let animationClass = "";
-
-              if (isEliminated) {
-                buttonClass = "bg-muted opacity-50 cursor-not-allowed hover:bg-muted";
-              } else if (isThisCorrect) {
-                buttonClass = "bg-secondary border-secondary";
-                if (showResult) {
-                  animationClass = "animate-pulse-correct";
-                }
-              } else if (isThisWrong) {
-                buttonClass = "bg-destructive border-destructive text-destructive-foreground";
-                if (showResult) {
-                  animationClass = "animate-shake-wrong";
-                }
-              } else if (isSelected) {
-                buttonClass = "bg-primary border-primary";
-                if (showResult && !isCorrect) {
-                  animationClass = "animate-shake-wrong";
-                }
-              }
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {questionData.question && ["A", "B", "C", "D"].map((option) => {
+              const optionKey = `option${option}` as keyof typeof questionData.question;
               return (
                 <Button
-                  key={option.letter}
-                  onClick={() => !isEliminated && handleAnswerSelect(option.letter)}
-                  disabled={showResult || isEliminated}
-                  className={`text-left p-6 h-auto text-lg font-bold uppercase border-4 border-foreground/20 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] transition-all ${buttonClass} ${animationClass}`}
+                  key={option}
+                  onClick={() => handleSubmitAnswer(option as "A" | "B" | "C" | "D")}
+                  disabled={showResult || eliminatedOptions.includes(option)}
+                  className={`p-6 h-auto text-lg font-black uppercase border-4 transition-all ${
+                    selectedAnswer === option
+                      ? isCorrect
+                        ? "bg-green-400 border-green-600 animate-pulse-glow"
+                        : "bg-red-400 border-red-600 animate-shake"
+                      : eliminatedOptions.includes(option)
+                      ? "opacity-30 cursor-not-allowed"
+                      : "bg-primary hover:bg-primary/90 border-foreground/20 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)]"
+                  }`}
                 >
-                  <span className="text-2xl font-black mr-4">{option.letter}.</span>
-                  {option.text}
+                  <span className="mr-4 font-black">{option}.</span>
+                  {(questionData.question as any)[optionKey]}
                 </Button>
               );
             })}
           </div>
+
+          {/* Hint Button */}
+          <div className="flex gap-4 justify-center mb-6">
+            <Button
+              onClick={handleUseHint}
+              disabled={hintUsed || showResult}
+              variant="outline"
+              className="px-6 py-4 font-black uppercase border-2"
+            >
+              <Lightbulb className="w-5 h-5 mr-2" />
+              Use Hint (-2 pts)
+            </Button>
+          </div>
+
+          {/* Hint Message */}
+          {hintMessage && (
+            <p className="text-center text-sm font-bold uppercase text-accent mb-4">{hintMessage}</p>
+          )}
+
+          {/* Result Feedback */}
+          {showResult && (
+            <div className={`p-6 rounded-lg border-4 text-center ${
+              isCorrect
+                ? "bg-green-100 border-green-400"
+                : "bg-red-100 border-red-400"
+            }`}>
+              <p className={`text-2xl font-black uppercase mb-2 ${
+                isCorrect ? "text-green-700" : "text-red-700"
+              }`}>
+                {isCorrect ? "✓ Correct!" : "✗ Incorrect"}
+              </p>
+              <p className="text-lg font-bold uppercase text-foreground/80">
+                {isCorrect ? `+5 points` : `Correct answer: ${correctAnswer}`}
+              </p>
+
+            </div>
+          )}
         </Card>
 
-        {/* Hint Message */}
-        {hintMessage && (
-          <Card className="p-4 mb-4 bg-accent/20 border-4 border-accent shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)]">
-            <p className="text-center font-bold text-accent-foreground">{hintMessage}</p>
-          </Card>
-        )}
-
-        {/* Hint and Submit Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          {!showResult && (
-            <Button
-              size="lg"
-              onClick={handleGetHint}
-              disabled={hintUsed || showResult || getHintMutation.isPending}
-              className="text-xl font-black uppercase px-8 py-6 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 border-4 border-foreground/20 flex items-center gap-2"
-            >
-              <Lightbulb className="w-6 h-6" />
-              {hintUsed ? "Hint Used" : "Get Hint"}
-            </Button>
-          )}
-
-          {!showResult && (
-            <Button
-              size="lg"
-              onClick={handleSubmitAnswer}
-              disabled={!selectedAnswer || submitAnswerMutation.isPending}
-              className="text-2xl font-black uppercase px-12 py-6 rounded-2xl bg-accent text-accent-foreground hover:bg-accent/90 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 border-4 border-foreground/20"
-            >
-              {submitAnswerMutation.isPending ? "Submitting..." : "Submit Answer"}
-            </Button>
-          )}
+        {/* Progress Bar */}
+        <div className="w-full bg-foreground/10 rounded-full h-4 border-2 border-foreground/20 overflow-hidden">
+          <div
+            className="bg-primary h-full transition-all duration-300"
+            style={{ width: `${scorePercentage * 100}%` }}
+          />
         </div>
-
-        {/* Result Message */}
-        {showResult && (
-          <div className="text-center">
-            <p className={`text-3xl font-black uppercase ${isCorrect ? "text-secondary" : "text-destructive"}`}>
-              {isCorrect ? "✓ Correct!" : "✗ Incorrect!"}
-            </p>
-            {!isCorrect && (
-              <p className="text-xl font-bold mt-2">
-                The correct answer was: <span className="text-secondary">{correctAnswer}</span>
-              </p>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

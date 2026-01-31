@@ -92,3 +92,7 @@
 - [x] Rename game title to "Lacon Quiz Game"
 - [x] Update all UI text references to new game name
 - [x] Test subject selection flow
+
+
+## Bug Fixes
+- [x] Fix Chemistry and Biology selections routing to Math
