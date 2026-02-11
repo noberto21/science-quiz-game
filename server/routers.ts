@@ -250,20 +250,8 @@ export const appRouter = router({
           nextDifficulty = "Hard";
         } else if (session.currentDifficulty === "Hard") {
           // Completed all difficulties for this category
-          completedCategoriesArray.push(session.currentCategoryId);
-          
-          // Find next category
-          const nextCategory = allCategories.find(
-            (c) => !completedCategoriesArray.includes(c.id)
-          );
-
-          if (nextCategory) {
-            nextCategoryId = nextCategory.id;
-            nextDifficulty = "Easy";
-          } else {
-            // All categories completed
-            isGameCompleted = true;
-          }
+          // End the game after one subject is completed
+          isGameCompleted = true;
         }
 
         // Calculate duration if game is completed

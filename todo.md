@@ -107,3 +107,7 @@
 - [x] Implement navigation back to subject selection
 - [x] Clear game session data when starting new subject
 - [x] Test subject switching flow
+
+
+## Game Flow Bug
+- [x] Fix game automatically progressing to next subject instead of showing EndScreen
