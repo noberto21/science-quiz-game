@@ -22,6 +22,10 @@ export default function SubjectSelection() {
     setIsLoading(true);
 
     try {
+      // Clear any previous session data
+      sessionStorage.removeItem("sessionId");
+      sessionStorage.removeItem("finalScore");
+      
       const result = await startGameMutation.mutateAsync({ categoryId });
       sessionStorage.setItem("sessionId", result.sessionId.toString());
       setLocation("/quiz");
@@ -83,7 +87,11 @@ export default function SubjectSelection() {
         {/* Back Button */}
         <div className="flex justify-center">
           <Button
-            onClick={() => setLocation("/")}
+            onClick={() => {
+              sessionStorage.removeItem("sessionId");
+              sessionStorage.removeItem("finalScore");
+              setLocation("/");
+            }}
             variant="outline"
             className="px-8 py-6 text-lg font-black uppercase"
             disabled={isLoading}

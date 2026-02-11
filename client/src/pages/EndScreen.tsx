@@ -16,6 +16,11 @@ export default function EndScreen() {
     setLocation("/");
   };
 
+  const handlePlayAnotherSubject = () => {
+    sessionStorage.removeItem("finalScore");
+    setLocation("/subject-selection");
+  };
+
   const handleExit = () => {
     window.close();
   };
@@ -91,7 +96,15 @@ export default function EndScreen() {
         </Card>
 
         {/* Buttons */}
-        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center pt-4">
+        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center pt-4 flex-wrap">
+          <Button
+            size="lg"
+            onClick={handlePlayAnotherSubject}
+            className="text-2xl font-black uppercase px-12 py-8 rounded-2xl bg-secondary text-secondary-foreground hover:bg-secondary/90 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 border-4 border-foreground/20"
+          >
+            Play Another Subject
+          </Button>
+
           <Button
             size="lg"
             onClick={handlePlayAgain}

@@ -100,3 +100,10 @@
 
 ## Score Update Bug
 - [x] Fix score not updating after correct answers
+
+
+## Play Another Subject Feature
+- [x] Add 'Play Another Subject' button to EndScreen
+- [x] Implement navigation back to subject selection
+- [x] Clear game session data when starting new subject
+- [x] Test subject switching flow
