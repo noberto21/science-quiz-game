@@ -111,3 +111,7 @@
 
 ## Game Flow Bug
 - [x] Fix game automatically progressing to next subject instead of showing EndScreen
+
+
+## Navigation Bug
+- [x] Fix 404 error on "Play Another Subject" button click

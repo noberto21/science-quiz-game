@@ -18,7 +18,7 @@ export default function EndScreen() {
 
   const handlePlayAnotherSubject = () => {
     sessionStorage.removeItem("finalScore");
-    setLocation("/subject-selection");
+    setLocation("/subjects");
   };
 
   const handleExit = () => {
