@@ -9,7 +9,9 @@ export default function EndScreen() {
 
   // Get final score from sessionStorage (set by QuizScreen)
   const finalScore = parseInt(sessionStorage.getItem("finalScore") || "0");
-  const totalQuestions = 9; // 3 categories × 3 difficulties
+  const totalQuestions = 3; // 3 difficulty levels per subject
+  const pointsPerQuestion = 5;
+  const maxPossibleScore = totalQuestions * pointsPerQuestion; // 15 points
 
   const handlePlayAgain = () => {
     sessionStorage.removeItem("finalScore");
@@ -26,7 +28,7 @@ export default function EndScreen() {
   };
 
   // Calculate performance message
-  const percentage = (finalScore / totalQuestions) * 100;
+  const percentage = (finalScore / maxPossibleScore) * 100;
   let performanceMessage = "";
   let performanceColor = "";
 
@@ -69,7 +71,7 @@ export default function EndScreen() {
               Your Final Score
             </p>
             <p className="text-7xl font-black text-primary text-shadow-md">
-              {finalScore} / {totalQuestions}
+              {finalScore} / {maxPossibleScore}
             </p>
             <p className={`text-2xl font-bold uppercase tracking-wide ${performanceColor}`}>
               {performanceMessage}
